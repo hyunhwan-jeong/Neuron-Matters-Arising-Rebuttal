@@ -1,0 +1,277 @@
+---
+ 
+title: "Comparison of EdgeR and Voom+limma on zero inflated low counts data"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Import libraries and data.
+```{r message=FALSE, warning=FALSE}
+library(edgeR)
+library(DESeq2)
+library(ggplot2)
+library(knitr)
+library(tidyverse)
+load("data.Rdata")
+interests <- c("NC_001716.2_region_1_153080__ID=id0", "NC_001664.2_region_1_159322__ID=id0")
+```
+
+Data variables include, `data.Rdata` contains four variables - `virMat` (read counts), `fullReadsPerSample` (library size), `comparison_annot` (condition and covariates), and `interests`.
+```{r}
+ls()
+```
+
+
+A summary of the condition and covariates used in this analysis.
+
+```{r}
+summary(comparison_annot)
+```
+
+The following plot shows the count distributions of viruses in questions.
+```{r}
+df_int <- 
+  rbind(
+    data.frame(id = interests[1], count = unlist(virMat[interests[1],]), comparison_annot), 
+    data.frame(id = interests[2], count = unlist(virMat[interests[2],]), comparison_annot)
+  )
+ggplot(df_int, aes(x=count, y=..density..)) + 
+  geom_histogram(aes(fill=status), position = "dodge") +
+  facet_wrap(~id)
+```
+
+```{r}
+df_int <- 
+  rbind(
+    data.frame(id = interests[1], count = unlist(virMat[interests[1],]), comparison_annot), 
+    data.frame(id = interests[2], count = unlist(virMat[interests[2],]), comparison_annot)
+  )
+
+df_int %>% 
+  #filter(status == "Case") %>% 
+  ggplot(aes(x=count, y=..density..)) + 
+  geom_histogram(aes(fill=status)) + facet_wrap(status~id, scales = "free_y")
+```
+
+```{r}
+df_int <- 
+  rbind(
+    data.frame(id = interests[1], count = unlist(virMat[interests[1],]), comparison_annot, lib_size = fullReadsPerSample), 
+    data.frame(id = interests[2], count = unlist(virMat[interests[2],]), comparison_annot, lib_size = fullReadsPerSample)
+  )
+ggplot(df_int, aes(x=count)) + 
+  geom_histogram(aes(fill=Batch)) +
+  facet_wrap(status~id)
+```
+
+```{r}
+df_int %>% 
+  ggplot(aes(x=PMI, y=count)) + geom_point(aes(color=status)) + facet_grid(~id) + scale_y_log10()
+```
+
+```{r}
+df_int %>% 
+  ggplot(aes(x=lib_size, y=count)) + 
+  geom_point(alpha=0.5) + 
+  facet_wrap(status~id) + 
+  scale_x_log10()
+```
+
+
+```{r}
+df_int %>% filter(lib_size < 2e7) %>% kable
+```
+
+```{r}
+df_int %>% filter(Batch == "E007_C014") %>% kable
+```
+
+```{r}
+df_int %>% 
+  mutate(is_zero = count > 0) %>% 
+  ggplot(aes(x=is_zero)) +
+  geom_bar(aes(fill=status)) +
+  facet_grid(id~Batch)
+```
+
+
+```{r}
+df_int %>% 
+  ggplot(aes(x=lib_size, y=count)) + 
+  geom_point(alpha=0.5, aes(color=Sex)) + 
+  facet_wrap(status~id) + 
+  scale_x_log10()
+```
+
+```{r}
+df_int %>% 
+  ggplot(aes(x=count, y=..density..)) + 
+  geom_histogram(aes(fill=status)) + 
+  facet_wrap(Sex~id, scales="free_y") 
+```
+
+The following function produces a result of DE using `voom + Limma`.
+```{r}
+run_voom <- function(virMat, fullReadsPerSample, comparison_annot) {
+  # create a design matrix and a contrast matrix for the DE analysis
+  designMat = model.matrix( ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI ,data = comparison_annot)
+  contrast.matrix<-makeContrasts(statusCase-statusControl,levels=designMat)
+  
+  # identify viruses will be retained in further steps (by read counts)
+  sign_threshold_population <- 10
+  virMat <- virMat[rowSums(sign(virMat)) > 0,]
+  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  
+  # perform voom and limma
+  dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
+  v <- voom(dge[retainVir,],designMat, lib.size = fullReadsPerSample, normalize.method = "quantile")
+  fit <- lmFit(object = v, design = designMat)
+  fit<- contrasts.fit(fit,contrast.matrix)
+  fit <- eBayes(fit, robust = TRUE)
+  as.data.frame(topTable(fit,number=Inf))
+}
+```
+
+The following function produces a result of DE using `edgeR`.
+```{r}
+run_edgeR <- function(virMat, fullReadsPerSample, comparison_annot) {
+  # create a design matrix and a contrast matrix for the DE analysis
+  designMat = model.matrix( ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI ,data = comparison_annot)
+  contrast.matrix<-makeContrasts(statusCase-statusControl,levels=designMat)
+  
+  # identify viruses will be retained in further steps (by read counts)
+  sign_threshold_population <- 10
+  virMat <- virMat[rowSums(sign(virMat)) > 0,]
+  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  
+  # perform edgeR (QL F-test) and return a data.frame
+  dge <- DGEList(counts=virMat[retainVir,], lib.size = fullReadsPerSample) 
+  dge <- calcNormFactors(dge)
+  dge <- estimateDisp(dge, designMat)
+  fit <- glmQLFit(dge, designMat)
+  glf <- glmQLFTest(fit,contrast = contrast.matrix)
+  as.data.frame(topTags(glf, n = Inf))
+}
+```
+
+Run functions above and store the results of them.
+
+```{r}
+ret_voom <- run_voom(virMat, fullReadsPerSample, comparison_annot)
+ret_edgeR <- run_edgeR(virMat, fullReadsPerSample, comparison_annot)
+```
+
+`voom` reported our interests are significant.
+```{r}
+kable(ret_voom[interests,])
+```
+
+`edgeR` reported our interests are not significant.
+```{r}
+kable(ret_edgeR[interests,])
+```
+
+Additionally, we performed DE analysis using `DESeq2`, and the following function produces a result of DE using `DESeq2`.
+
+```{r}
+run_deseq2 <- function(virMat, fullReadsPerSample, comparison_annot) {
+  deseq2_coldata <- comparison_annot
+  rownames(deseq2_coldata) <- colnames(virMat)
+  sign_threshold_population <- 10
+  virMat <- virMat[rowSums(sign(virMat)) > 0,]
+  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  
+  dds <- DESeqDataSetFromMatrix(countData = virMat[retainVir,], 
+                                colData = deseq2_coldata, 
+                                design = ~ 0 + AOD + Race + RIN + Sex + Batch + PMI + status)
+  
+  dds <- DESeq(dds)
+  as.data.frame(results(dds))
+}
+```
+
+
+```{r}
+ret_deseq2 <- run_deseq2(virMat, fullReadsPerSample, comparison_annot)
+kable(ret_deseq2[interests,])
+```
+
+Additionally, we performed DE analysis using `glm`, and the following function produces a result of DE using `glm`.
+
+```{r}
+get_coeff <- function(dat, f, i) {
+  require(dplyr)
+  require(magrittr)
+  glm(f, data = dat, family = binomial(), na.action = na.exclude) %>% 
+    summary %>% coefficients -> coef 
+  list(P.Value = coef[i, "Pr(>|z|)"],
+       z = coef[i, "z value"])
+}
+
+run_glm <- function(mat, depth, cov, f = NULL) {
+  require(magrittr)
+  if(is.null(f)) {
+    f <- status ~ 0 + cpm + AOD + Race + RIN + Sex + Batch + PMI
+  }
+  sign_threshold_population <- 10
+  mat <- mat[rowSums(sign(mat)) > 0,]
+  retainVir <- rowSums(mat >= 2) >= sign_threshold_population
+  mat <- mat[retainVir,]
+  df_all_glm <- data.frame()
+  for(i in 1:nrow(mat)) {
+    cpm <- unlist(mat[i,]) / depth * 10^6
+    df_all <- data.frame(cov, cpm = cpm)
+    df_all_glm %>% rbind(get_coeff(df_all, f, "cpm")) -> df_all_glm
+  }
+  df_all_glm$adj.P.Val <- p.adjust(df_all_glm$P.Val, method = "fdr")
+  rownames(df_all_glm) <- rownames(mat)
+  df_all_glm
+}
+```
+
+```{r}
+ret_glm <- run_glm(virMat, fullReadsPerSample, comparison_annot) 
+kable(ret_glm[interests,])
+```
+
+```{r}
+get_coeff <- function(dat, f, i) {
+  require(dplyr)
+  require(magrittr)
+  require(Rfit)
+  ret <- rfit(f, data = dat, na.action = na.exclude) 
+  summary(ret) %>% coefficients -> coef 
+  list(P.Value = coef[i, "p.value"],
+      t = coef[i, "t.value"])
+}
+
+run_rfit <- function(mat, depth, cov, f = NULL) {
+  require(magrittr)
+  if(is.null(f)) {
+    f <- cpm ~ status + AOD + Race + RIN + Sex + Batch + PMI 
+  }
+  sign_threshold_population <- 10
+  mat <- mat[rowSums(sign(mat)) > 0,]
+  retainVir <- rowSums(mat >= 2) >= sign_threshold_population
+  mat <- mat[retainVir,]
+  df_all_glm <- data.frame()
+  for(i in 1:nrow(mat)) {
+    cpm <- unlist(mat[i,]) / depth * 10^6
+    df_all <- data.frame(cov, cpm = cpm)
+    df_all_glm %>% rbind(get_coeff(df_all, f, "statusCase")) -> df_all_glm
+  }
+  df_all_glm$adj.P.Val <- p.adjust(df_all_glm$P.Val, method = "fdr")
+  rownames(df_all_glm) <- rownames(mat)
+  df_all_glm
+}
+```
+
+
+```{r}
+ret_rfit <- run_rfit(virMat, fullReadsPerSample, comparison_annot)
+kable(ret_rfit[interests,])
+```
+
