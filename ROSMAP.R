@@ -180,3 +180,53 @@ ggplot(df_all, aes(x=AD_level, y=logFC)) +
   geom_bar(aes(fill=method), stat = "identity", position = "dodge") +
   geom_hline(yintercept = 0) +
   facet_grid(study~name)
+
+
+draw_cpm_hist <- function(study_id) {
+  load("data/ROSMAP_RNA_workspace.RData")
+  ROSMAP_RNA_workspace$metadata <- ROSMAP_RNA_workspace$metadata[which(ROSMAP_RNA_workspace$metadata$Study == study_id),]
+  expr <- ROSMAP_RNA_workspace$virusLevelCounts[,ROSMAP_RNA_workspace$metadata$Sample_ID]
+  
+  path_level <- c("AD_Definite", "AD_Likely", "AD_Possible")
+  
+  df_count <- data.frame()
+  for(cerad_i in 1:3) {
+    
+    otherCovariates <- ROSMAP_RNA_workspace$metadata[match(colnames(expr), ROSMAP_RNA_workspace$metadata$Sample_ID),
+                                                     c("Study", "AOD", "PMI","MSex", "Race", "RIN", "Batch", "CeradScore", "Education")]
+    
+    virMat <- expr
+    fullReadsPerSample <- as.numeric(ROSMAP_RNA_workspace$metadata$TotalReads[match(colnames(virMat), ROSMAP_RNA_workspace$metadata$Sample_ID)])# 
+    will_keep <- otherCovariates$CeradScore == 4 | otherCovariates$CeradScore <= cerad_i
+    
+    virMat <- virMat[,will_keep]
+    fullReadsPerSample <- fullReadsPerSample[will_keep]
+    otherCovariates <- otherCovariates[will_keep,]  
+    hhv7 <- data.frame(
+      cpm = unlist(virMat[interests[1],] / fullReadsPerSample * 10^6),
+      name = "HHV7",
+      status = ifelse(otherCovariates$CeradScore == 4, "Control", path_level[cerad_i])
+    )
+    hhv6a <- data.frame(
+      cpm = unlist(virMat[interests[2],] / fullReadsPerSample * 10^6),
+      name = "HHV6A",
+      status = ifelse(otherCovariates$CeradScore == 4, "Control", path_level[cerad_i])
+    )
+    
+    if(cerad_i != 1) {
+      hhv7 <- hhv7 %>% filter(status != "Control")
+      hhv6a <- hhv6a %>% filter(status != "Control")
+    }
+    df_count <- rbind(df_count, hhv7, hhv6a)
+  }
+  
+  ggplot(df_count, aes(x=log2(0.1+cpm))) +
+    geom_histogram(aes(y=stat(width*density))) + facet_grid(status~name) + ggtitle(study_id) + theme_bw()
+}
+
+library(cowplot)
+plot_grid(
+  draw_cpm_hist("ROS"),
+  draw_cpm_hist("MAP")  
+)
+
