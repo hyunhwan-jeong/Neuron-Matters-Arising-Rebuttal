@@ -202,13 +202,16 @@ draw_cpm_hist <- function(study_id) {
     virMat <- virMat[,will_keep]
     fullReadsPerSample <- fullReadsPerSample[will_keep]
     otherCovariates <- otherCovariates[will_keep,]  
+    
+    log2CPM <- cpm(virMat, lib.size = fullReadsPerSample, log=T, prior.count = 0.1)
+    
     hhv7 <- data.frame(
-      cpm = unlist(virMat[interests[1],] / fullReadsPerSample * 10^6),
+      cpm = unlist(log2CPM[interests[1],]),
       name = "HHV7",
       status = ifelse(otherCovariates$CeradScore == 4, "Control", path_level[cerad_i])
     )
     hhv6a <- data.frame(
-      cpm = unlist(virMat[interests[2],] / fullReadsPerSample * 10^6),
+      cpm = unlist(log2CPM[interests[2],]),
       name = "HHV6A",
       status = ifelse(otherCovariates$CeradScore == 4, "Control", path_level[cerad_i])
     )
@@ -220,8 +223,9 @@ draw_cpm_hist <- function(study_id) {
     df_count <- rbind(df_count, hhv7, hhv6a)
   }
   
-  ggplot(df_count, aes(x=log2(0.1+cpm))) +
-    geom_histogram(aes(y=stat(width*density))) + facet_grid(status~name) + ggtitle(study_id) + theme_bw()
+  ggplot(df_count, aes(x=cpm)) +
+    geom_histogram(aes(y=stat(width*density))) + facet_grid(status~name) + ggtitle(study_id) + theme_bw() +
+    ylab("Frequency (%)") + xlab("log2CPM")
 }
 
 library(cowplot)

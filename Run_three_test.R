@@ -46,7 +46,7 @@ run_edgeR <- function(virMat, fullReadsPerSample, comparison_annot, filter = T) 
   # create a design matrix and a contrast matrix for the DE analysis
   designMat = model.matrix( ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI ,data = comparison_annot)
   contrast.matrix<-makeContrasts(statusCase-statusControl,levels=designMat)
-  
+  print(contra)
   # identify viruses will be retained in further steps (by read counts)
   sign_threshold_population <- 10
   virMat <- virMat[rowSums(sign(virMat)) > 0,]
