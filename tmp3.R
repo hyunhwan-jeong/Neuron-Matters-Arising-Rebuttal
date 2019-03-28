@@ -100,10 +100,14 @@ for(i in names(orig)) {
   }
 }
 
-(df_mg %>% select(tissue, test, name, starts_with("logFC"), starts_with("P.Value"))) %>% 
+interests <- c("NC_001716.2_region_1_153080__ID=id0", "NC_001664.2_region_1_159322__ID=id0")
+
+(df_mg %>% select(tissue, test, name, starts_with("logFC"), starts_with("P.Value"))) %>%
+  mutate(name = ifelse(name %in% interests, substr(name, 1, 9), "")) %>% 
   ggplot(aes(x=P.Value.orig, y=P.Value.cont)) +
-  geom_point() + theme_bw() + facet_grid(tissue~test) + geom_smooth(method = "lm") + theme(aspect.ratio=1)
+  geom_point() + theme_bw() + facet_grid(tissue~test) + geom_smooth(method = "lm") + theme(aspect.ratio=1) + geom_text(aes(label=name))
 
 (df_mg %>% select(tissue, test, name, starts_with("logFC"), starts_with("P.Value"))) %>% 
+  mutate(name = ifelse(name %in% interests, substr(name, 1, 9), "")) %>% 
   ggplot(aes(x=logFC.orig, y=logFC.cont)) +
-  geom_point() + theme_bw() + facet_wrap(tissue~test, ncol=3, scales = "free") + geom_smooth(method = "lm")
+  geom_point() + theme_bw() + facet_wrap(tissue~test, ncol=3, scales = "free") + geom_abline() + theme(aspect.ratio = 1) + geom_text(aes(label=name))

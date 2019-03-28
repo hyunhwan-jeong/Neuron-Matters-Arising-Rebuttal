@@ -1,7 +1,6 @@
 library(DESeq2)
 library(edgeR)
 library(tidyverse)
-source("../scripts/R/helper_fxn.R")
 load("data/MSBB_RNA_workspace.RData")
 
 tissues <- c("BM_22", "BM_36", "BM_10", "BM_44")
@@ -14,6 +13,87 @@ interests <- c("NC_001716.2_region_1_153080__ID=id0", "NC_001664.2_region_1_1593
 virus_level_DE_per_region <- vector("list", length(tissues))
 names(virus_level_DE_per_region) <- tissues
 
+run_voom <- function(virMat, fullReadsPerSample, comparison_annot, filter = T) {
+  # create a design matrix and a contrast matrix for the DE analysis
+  designMat = model.matrix( ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI ,data = comparison_annot)
+  contrast.matrix<-makeContrasts(statusCase-statusControl,levels=designMat)
+  
+  # identify viruses will be retained in further steps (by read counts)
+  sign_threshold_population <- 10
+  virMat <- virMat[rowSums(sign(virMat)) > 0,]
+  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  
+  if(!filter) {
+    dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
+    v <- voom(dge,designMat, lib.size = fullReadsPerSample, normalize.method = "quantile")
+    fit <- lmFit(object = v[retainVir,], design = designMat)
+    fit<- contrasts.fit(fit,contrast.matrix)
+    fit <- eBayes(fit, robust = TRUE)
+    as.data.frame(topTable(fit,number=Inf))
+  }
+  else {
+    dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
+    v <- voom(dge[retainVir,],designMat, lib.size = fullReadsPerSample, normalize.method = "quantile")
+    fit <- lmFit(object = v, design = designMat)
+    fit<- contrasts.fit(fit,contrast.matrix)
+    fit <- eBayes(fit, robust = TRUE)
+    as.data.frame(topTable(fit,number=Inf))
+  }
+}
+
+run_edgeR <- function(virMat, fullReadsPerSample, comparison_annot, filter = T) {
+  # create a design matrix and a contrast matrix for the DE analysis
+  designMat = model.matrix( ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI ,data = comparison_annot)
+  contrast.matrix<-makeContrasts(statusCase-statusControl,levels=designMat)
+  # identify viruses will be retained in further steps (by read counts)
+  sign_threshold_population <- 10
+  virMat <- virMat[rowSums(sign(virMat)) > 0,]
+  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  
+  # perform edgeR (QL F-test) and return a data.frame
+  if(!filter) {
+    dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
+    dge <- calcNormFactors(dge)
+    dge <- estimateDisp(dge, designMat)
+    fit <- glmQLFit(dge[retainVir,], designMat, robust = T)
+    glf <- glmQLFTest(fit,contrast = contrast.matrix)
+    as.data.frame(topTags(glf, n = Inf))
+  }
+  else {
+    dge <- DGEList(counts=virMat[retainVir,], lib.size = fullReadsPerSample) 
+    dge <- calcNormFactors(dge)
+    dge <- estimateDisp(dge, designMat)
+    fit <- glmQLFit(dge, designMat, robust = T)
+    glf <- glmQLFTest(fit,contrast = contrast.matrix)
+    as.data.frame(topTags(glf, n = Inf))
+  }
+}
+
+run_deseq2 <- function(virMat, fullReadsPerSample, comparison_annot, filter = T) {
+  deseq2_coldata <- comparison_annot
+  rownames(deseq2_coldata) <- colnames(virMat)
+  sign_threshold_population <- 10
+  virMat <- virMat[rowSums(sign(virMat)) > 0,]
+  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  
+  print(as_tibble(deseq2_coldata))
+  # perform DESeq before the filteration
+  if(!filter) {
+    dds <- DESeqDataSetFromMatrix(countData = virMat[retainVir,], 
+                                  colData = deseq2_coldata, 
+                                  design = ~ 0 + AOD + Race + RIN + Sex + Batch + PMI + status)
+    dds <- DESeq(dds, fitType = "mean")
+    
+    as.data.frame(results(dds, independentFiltering=FALSE))
+  } else {
+    dds <- DESeqDataSetFromMatrix(countData = virMat, 
+                                  colData = deseq2_coldata, 
+                                  design = ~ 0 + AOD + Race + RIN + Sex + Batch + PMI + status)
+    
+    dds <- DESeq(dds, fitType = "mean")
+    as.data.frame(results(dds, independentFiltering=TRUE))
+  }
+}
 
 for(tissue_i in 1:length(tissues)){
   
@@ -50,14 +130,14 @@ for(tissue_i in 1:length(tissues)){
     viral_tT <- data.frame(sequence = MSBB_RNA_workspace$virus_name_2_accession_ID$VirusName[match(sapply(strsplit(rownames(viral_tT), split = "_"), function(x) paste(x[1:2], collapse = "_")), MSBB_RNA_workspace$virus_name_2_accession_ID$Accession)], name = rownames(viral_tT),viral_tT, row.names = NULL)
     viral_tT <- viral_tT %>% 
       select(sequence, name, logFC = log2FoldChange, FDR = padj) %>% 
-      mutate(method = "DESeq2noFilter")
+      mutate(method = "DESeq2preFilter")
     df_tmp <- rbind(df_tmp, viral_tT)
     
     viral_tT <- run_deseq2(virMat, fullReadsPerSample, comparison_annot, filter = F)
     viral_tT <- data.frame(sequence = MSBB_RNA_workspace$virus_name_2_accession_ID$VirusName[match(sapply(strsplit(rownames(viral_tT), split = "_"), function(x) paste(x[1:2], collapse = "_")), MSBB_RNA_workspace$virus_name_2_accession_ID$Accession)], name = rownames(viral_tT),viral_tT, row.names = NULL)
     viral_tT <- viral_tT %>% 
       select(sequence, name, logFC = log2FoldChange, FDR = padj) %>% 
-      mutate(method = "DESeq2wtFilter")
+      mutate(method = "DESeq2indFilter")
     df_tmp <- rbind(df_tmp, viral_tT)
     
     viral_tT <- run_voom(virMat, fullReadsPerSample, comparison_annot)
@@ -115,14 +195,14 @@ p1 <- df_ret %>%
   #geom_line(stat = "identity", aes(group=method, color=method)) + 
   geom_bar(stat = "identity", aes(fill=method), width=0.5, position = "dodge") + 
   geom_hline(yintercept = -log10(0.1)) +
-  facet_grid(tissue~sequence) 
+  facet_grid(tissue~sequence) + theme_bw()
 
 
 p2 <- df_ret %>% 
   ggplot(aes(x=trait, y=logFC)) +
   geom_bar(stat = "identity", aes(fill=method), width=0.5, position = "dodge") + 
   geom_hline(yintercept = 0) +
-  facet_grid(tissue~sequence)
+  facet_grid(tissue~sequence) + theme_bw()
 
 p1
 p2
