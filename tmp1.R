@@ -76,3 +76,6 @@ for(tissue_i in 1:length(tissues)){
 
 virus_level_DE_per_region_origin <- virus_level_DE_per_region
 save(virus_level_DE_per_region_origin, file = "results/tmp.Rdata")
+
+
+head(print(iris))

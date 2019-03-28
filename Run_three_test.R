@@ -14,90 +14,6 @@ interests <- c("NC_001716.2_region_1_153080__ID=id0", "NC_001664.2_region_1_1593
 virus_level_DE_per_region <- vector("list", length(tissues))
 names(virus_level_DE_per_region) <- tissues
 
-run_voom <- function(virMat, fullReadsPerSample, comparison_annot, filter = T) {
-  # create a design matrix and a contrast matrix for the DE analysis
-  designMat = model.matrix( ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI ,data = comparison_annot)
-  contrast.matrix<-makeContrasts(statusCase-statusControl,levels=designMat)
-  
-  # identify viruses will be retained in further steps (by read counts)
-  sign_threshold_population <- 10
-  virMat <- virMat[rowSums(sign(virMat)) > 0,]
-  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
-  
-  if(!filter) {
-    dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
-    v <- voom(dge,designMat, lib.size = fullReadsPerSample, normalize.method = "quantile")
-    fit <- lmFit(object = v[retainVir,], design = designMat)
-    fit<- contrasts.fit(fit,contrast.matrix)
-    fit <- eBayes(fit, robust = TRUE)
-    as.data.frame(topTable(fit,number=Inf))
-  }
-  else {
-    dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
-    v <- voom(dge[retainVir,],designMat, lib.size = fullReadsPerSample, normalize.method = "quantile")
-    fit <- lmFit(object = v, design = designMat)
-    fit<- contrasts.fit(fit,contrast.matrix)
-    fit <- eBayes(fit, robust = TRUE)
-    as.data.frame(topTable(fit,number=Inf))
-  }
-}
-
-run_edgeR <- function(virMat, fullReadsPerSample, comparison_annot, filter = T) {
-  # create a design matrix and a contrast matrix for the DE analysis
-  designMat = model.matrix( ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI ,data = comparison_annot)
-  contrast.matrix<-makeContrasts(statusCase-statusControl,levels=designMat)
-  print(contra)
-  # identify viruses will be retained in further steps (by read counts)
-  sign_threshold_population <- 10
-  virMat <- virMat[rowSums(sign(virMat)) > 0,]
-  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
-  
-  # perform edgeR (QL F-test) and return a data.frame
-  if(!filter) {
-    dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
-    dge <- calcNormFactors(dge)
-    dge <- estimateDisp(dge, designMat)
-    fit <- glmQLFit(dge[retainVir,], designMat)
-    glf <- glmQLFTest(fit,contrast = contrast.matrix)
-    as.data.frame(topTags(glf, n = Inf))
-  }
-  else {
-    dge <- DGEList(counts=virMat[retainVir,], lib.size = fullReadsPerSample) 
-    dge <- calcNormFactors(dge)
-    dge <- estimateDisp(dge, designMat)
-    fit <- glmQLFit(dge, designMat)
-    glf <- glmQLFTest(fit,contrast = contrast.matrix)
-    as.data.frame(topTags(glf, n = Inf))
-  }
-}
-
-run_deseq2 <- function(virMat, fullReadsPerSample, comparison_annot, filter = T) {
-  deseq2_coldata <- comparison_annot
-  rownames(deseq2_coldata) <- colnames(virMat)
-  sign_threshold_population <- 10
-  virMat <- virMat[rowSums(sign(virMat)) > 0,]
-  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
-  
-  # perform DESeq before the filteration
-  if(!filter) {
-    dds <- DESeqDataSetFromMatrix(countData = virMat, 
-                                  colData = deseq2_coldata, 
-                                  design = ~ 0 + AOD + Race + RIN + Sex + Batch + PMI + status)
-    print(summary(dds))
-    dds <- DESeq(dds[retainVir,])
-    
-    as.data.frame(results(dds))
-  } else {
-    dds <- DESeqDataSetFromMatrix(countData = virMat[retainVir,], 
-                                  colData = deseq2_coldata, 
-                                  design = ~ 0 + AOD + Race + RIN + Sex + Batch + PMI + status)
-    
-    print(summary(dds))
-    dds <- DESeq(dds)
-    print(counts(dds, normalized=T) %>% as.data.frame %>% as_tibble)
-    as.data.frame(results(dds))
-  }
-}
 
 for(tissue_i in 1:length(tissues)){
   
@@ -194,7 +110,7 @@ for(i in tissues) {
 }
 
 
-df_ret %>%
+p1 <- df_ret %>%
   ggplot(aes(x=trait, y=-log10(FDR))) +
   #geom_line(stat = "identity", aes(group=method, color=method)) + 
   geom_bar(stat = "identity", aes(fill=method), width=0.5, position = "dodge") + 
@@ -202,7 +118,7 @@ df_ret %>%
   facet_grid(tissue~sequence) 
 
 
-df_ret %>% 
+p2 <- df_ret %>% 
   ggplot(aes(x=trait, y=logFC)) +
   geom_bar(stat = "identity", aes(fill=method), width=0.5, position = "dodge") + 
   geom_hline(yintercept = 0) +
