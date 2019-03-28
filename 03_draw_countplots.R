@@ -1,7 +1,5 @@
 source("process_data.R")
 
-HHV7 <- 
-HHV6A <- 
 
 get_count_df <- function(dataset, trait) {
   require(edgeR)

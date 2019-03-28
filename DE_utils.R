@@ -1,7 +1,9 @@
 library(edgeR)
 library(DESeq2)
 
-run_voom <- function(virMat, fullReadsPerSample, comparison_annot, design, 
+run_voom <- function(virMat, 
+                     fullReadsPerSample, 
+                     comparison_annot, design, 
                      filter = "prefilter") {
   # create a design matrix and a contrast matrix for the DE analysis
   designMat = model.matrix(design, data = comparison_annot)
