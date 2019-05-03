@@ -1,5 +1,5 @@
 source("process_data.R")
-
+library(tidyverse)
 
 get_count_df <- function(dataset, trait) {
   require(edgeR)
@@ -120,7 +120,7 @@ p3 <- df_expr %>%
   ggplot(aes(CPM)) +
   geom_histogram(aes(y=..density..*..width..)) +
   facet_grid(AD_level ~ tissue, scales = "free_x") +
-  ggtitle("HHV6A log2(CPM)") +
+  ggtitle("HHV6A") +
   ylab("Frequency") + xlab("log2CPM") +
   theme_bw()
 
@@ -129,11 +129,11 @@ p4 <- df_expr %>%
   ggplot(aes(CPM)) +
   geom_histogram(aes(y=..density..*..width..)) +
   facet_grid(AD_level ~ tissue, scales = "free_x") +
-  ggtitle("HHV7 log2(CPM)") +  
+  ggtitle("HHV7") +  
   ylab("Frequency") + xlab("log2CPM") +
   theme_bw()
 
-plot_grid(p1, p2, p3, p4, ncol = 2)
+plot_grid(p3, p4, ncol = 1)
 save_plot(last_plot(), 
           filename = "results/viral_expression.pdf",
           base_height = 10,
