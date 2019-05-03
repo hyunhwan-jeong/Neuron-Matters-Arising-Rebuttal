@@ -20,7 +20,8 @@ for(tissue in c("BM_22", "BM_36", "BM_10", "BM_44")) {
       run_all_DEs(
         dataset[[cur_ad_lv]],
         ~ 0 + status + AOD + Race + RIN + Sex + Batch + PMI,
-        ~ 0 + AOD + Race + RIN + Sex + Batch + PMI + status
+        ~ 0 + AOD + Race + RIN + Sex + Batch + PMI + status,
+        status ~ 0 + cpm + AOD + Race + RIN + Sex + Batch + PMI
       )
   }
   
@@ -33,7 +34,8 @@ for(cur_ad_lv in AD_level) {
     run_all_DEs(
       dataset[[cur_ad_lv]],
       ~ 0 + status + Education + AOD  + MSex + Race + PMI + RIN + Batch, 
-      ~ 0 + Education + AOD + MSex + Race + PMI + RIN + status 
+      ~ 0 + Education + AOD + MSex + Race + PMI + RIN + status,
+      status ~ 0 + cpm + Education + AOD + MSex + Race + PMI + RIN
     )
 }
 
@@ -44,7 +46,8 @@ for(cur_ad_lv in AD_level) {
     run_all_DEs(
       dataset[[cur_ad_lv]],
       ~ 0 + status + Education + AOD  + MSex + Race + PMI + RIN + Batch,
-      ~ 0 + Education + AOD + MSex + Race + PMI + RIN + status 
+      ~ 0 + Education + AOD + MSex + Race + PMI + RIN + status,
+      status ~ 0 + cpm + Education + AOD + MSex + Race + PMI + RIN
     )
 }
 
@@ -54,7 +57,8 @@ ret[["MAYO_TCX"]] <-
     AD_definite = 
       run_all_DEs(process_MAYO()$AD_definite, 
                   ~ 0 + status + AOD + Sex + Flowcell + Source + RIN,
-                  ~ 0 + AOD + Sex + Flowcell + Source + RIN + status)
+                  ~ 0 + AOD + Sex + Flowcell + Source + RIN + status,
+                  status ~ 0 + cpm +  AOD + Sex + Flowcell + Source + RIN)
   )
 
 

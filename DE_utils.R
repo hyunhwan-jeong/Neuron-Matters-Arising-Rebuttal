@@ -88,9 +88,56 @@ run_deseq2 <- function(virMat, fullReadsPerSample, comparison_annot, design,
   }
 }
 
+run_glm <- function(virMat, 
+                    fullReadsPerSample, 
+                    comparison_annot, 
+                    design) {
+  
+  
+  glm_func <- function(mat, cov, f = NULL) {
+    require(magrittr)
+    get_coeff <- function(dat, f, i) {
+      glm(f, data = dat, family = binomial(), na.action = na.exclude) %>% 
+        summary %>% coefficients -> coef
+      
+      logFC <- log2(mean(dat$cpm[dat$status=="Case"]) / mean(dat$cpm[dat$status=="Control"]))
+      
+      list(P.Value = coef[i, "Pr(>|z|)"],
+           z = coef[i, "z value"],
+           logFC = logFC)
+    }
+    
+    if(is.null(f)) {
+      f <- status ~ 0 + cpm + AOD + Race + RIN + Sex + Batch + PMI
+    }
+    df_all_glm <- data.frame()
+    for(i in 1:nrow(mat)) {
+      cpm <- unlist(mat[i,]) 
+      df_all <- data.frame(cov, cpm = cpm)
+      
+      df_all_glm <- rbind(df_all_glm, get_coeff(df_all, f, "cpm"))
+    }
+    df_all_glm$adj.P.Val <- p.adjust(df_all_glm$P.Val, method = "fdr")
+    rownames(df_all_glm) <- rownames(mat)
+    df_all_glm
+  }
+  
+  sign_threshold_population <- 10
+  virMat <- virMat[rowSums(sign(virMat)) > 0,]
+  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  
+  cpm <- edgeR::cpm(virMat, lib.size = fullReadsPerSample)
+  
+  glm_func(cpm[retainVir,], comparison_annot)
+  
+}
+
+
+
 run_all_DEs <- function(dataset,
                         design_others,
-                        design_deseq2) {
+                        design_deseq2,
+                        design_glm) {
   
   virMat <- dataset$virMat
   fullReadsPerSample <- dataset$fullReadsPerSample
@@ -105,13 +152,13 @@ run_all_DEs <- function(dataset,
       design_others,
       "no_prefilter")
   
-  ret[["voom+limma prefilter"]] <- 
-    run_voom(
-      virMat,
-      fullReadsPerSample,
-      covariates,
-      design_others,
-      "prefilter")
+  # ret[["voom+limma prefilter"]] <- 
+  #   run_voom(
+  #     virMat,
+  #     fullReadsPerSample,
+  #     covariates,
+  #     design_others,
+  #     "prefilter")
   
   ret[["edgeR prefilter"]] <- 
     run_edgeR(
@@ -121,13 +168,13 @@ run_all_DEs <- function(dataset,
       design_others,
       "no_prefilter")
   
-  ret[["edgeR no prefilter"]] <- 
-    run_edgeR(
-      virMat,
-      fullReadsPerSample,
-      covariates,
-      design_others,
-      "prefilter")
+  # ret[["edgeR no prefilter"]] <- 
+  #   run_edgeR(
+  #     virMat,
+  #     fullReadsPerSample,
+  #     covariates,
+  #     design_others,
+  #     "prefilter")
   
   ret[["DESeq2 indepfilter"]] <-
     run_deseq2(
@@ -137,13 +184,21 @@ run_all_DEs <- function(dataset,
       design_deseq2,
       "independent")
   
-  ret[["DESeq2 prefilter"]] <- 
-    run_deseq2(
+  # ret[["DESeq2 prefilter"]] <- 
+  #   run_deseq2(
+  #     virMat,
+  #     fullReadsPerSample,
+  #     covariates,
+  #     design_deseq2,
+  #     "prefilter")
+  
+  ret[["GLM"]] <-
+    run_glm(
       virMat,
       fullReadsPerSample,
       covariates,
-      design_deseq2,
-      "prefilter")
+      design_glm
+    )
   
   ret
 }
