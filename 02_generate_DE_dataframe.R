@@ -16,6 +16,10 @@ for(tissue in names(DE_results)) {
         cur_df <- 
           cur_df %>% 
           select(name, log2FC = logFC, FDR = FDR)
+      } else if(met == "GLM") {
+        cur_df <- 
+          cur_df %>% 
+          select(name, log2FC = logFC, FDR = adj.P.Val)
       } else {
         cur_df <- 
           cur_df %>% 

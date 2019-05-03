@@ -61,7 +61,6 @@ ret[["MAYO_TCX"]] <-
                   status ~ 0 + cpm +  AOD + Sex + Flowcell + Source + RIN)
   )
 
-
 DE_results <- ret
 
 save(DE_results, file = "results/DE_results.RData")

@@ -133,8 +133,8 @@ p4 <- df_expr %>%
   ylab("Frequency") + xlab("log2CPM") +
   theme_bw()
 
-plot_grid(p3, p4, ncol = 1)
+plot_grid(p3, p4, ncol = 2)
 save_plot(last_plot(), 
           filename = "results/viral_expression.pdf",
-          base_height = 10,
+          base_height = 6,
           base_width = 16)

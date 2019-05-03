@@ -12,7 +12,10 @@ run_voom <- function(virMat,
   # identify viruses will be retained in further steps (by read counts)
   sign_threshold_population <- 10
   virMat <- virMat[rowSums(sign(virMat)) > 0,]
-  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  interests <- c("NC_001716.2_region_1_153080__ID=id0", 
+                 "NC_001664.2_region_1_159322__ID=id0")
+  
+  retainVir <- (rowSums(virMat >= 2) >= sign_threshold_population) | (rownames(virMat) %in% interests)
   
   if(filter != "prefilter") {
     dge <- DGEList(counts=virMat, lib.size = fullReadsPerSample) 
@@ -42,7 +45,11 @@ run_edgeR <- function(virMat, fullReadsPerSample, comparison_annot, design,
   # identify viruses will be retained in further steps (by read counts)
   sign_threshold_population <- 10
   virMat <- virMat[rowSums(sign(virMat)) > 0,]
-  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  interests <- c("NC_001716.2_region_1_153080__ID=id0", 
+                 "NC_001664.2_region_1_159322__ID=id0")
+  
+  retainVir <- (rowSums(virMat >= 2) >= sign_threshold_population) | (rownames(virMat) %in% interests)
+  
   
   # perform edgeR (QL F-test) and return a data.frame
   if(filter != "prefilter") {
@@ -69,7 +76,10 @@ run_deseq2 <- function(virMat, fullReadsPerSample, comparison_annot, design,
   rownames(deseq2_coldata) <- colnames(virMat)
   sign_threshold_population <- 10
   virMat <- virMat[rowSums(sign(virMat)) > 0,]
-  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  interests <- c("NC_001716.2_region_1_153080__ID=id0", 
+                 "NC_001664.2_region_1_159322__ID=id0")
+  
+  retainVir <- (rowSums(virMat >= 2) >= sign_threshold_population) | (rownames(virMat) %in% interests)
   
   # perform DESeq before the filteration
   if(filter != "independent") {
@@ -101,6 +111,7 @@ run_glm <- function(virMat,
         summary %>% coefficients -> coef
       
       logFC <- log2(mean(dat$cpm[dat$status=="Case"]) / mean(dat$cpm[dat$status=="Control"]))
+      #logFC <- mean(log2(dat$cpm[dat$status=="Case"]+0.01)) - mean(log2(dat$cpm[dat$status=="Control"]+0.01))
       
       list(P.Value = coef[i, "Pr(>|z|)"],
            z = coef[i, "z value"],
@@ -124,11 +135,15 @@ run_glm <- function(virMat,
   
   sign_threshold_population <- 10
   virMat <- virMat[rowSums(sign(virMat)) > 0,]
-  retainVir <- rowSums(virMat >= 2) >= sign_threshold_population
+  interests <- c("NC_001716.2_region_1_153080__ID=id0", 
+                 "NC_001664.2_region_1_159322__ID=id0")
+  
+  retainVir <- (rowSums(virMat >= 2) >= sign_threshold_population) | (rownames(virMat) %in% interests)
+  
   
   cpm <- edgeR::cpm(virMat, lib.size = fullReadsPerSample)
   
-  glm_func(cpm[retainVir,], comparison_annot)
+  glm_func(cpm[retainVir,], comparison_annot, design)
   
 }
 
@@ -144,7 +159,7 @@ run_all_DEs <- function(dataset,
   covariates <- dataset$covariates
   
   ret <- list()
-  ret[["voom+limma no prefilter"]] <- 
+  ret[["voom+limma"]] <- 
     run_voom(
       virMat,
       fullReadsPerSample,
@@ -160,7 +175,7 @@ run_all_DEs <- function(dataset,
   #     design_others,
   #     "prefilter")
   
-  ret[["edgeR prefilter"]] <- 
+  ret[["edgeR"]] <- 
     run_edgeR(
       virMat,
       fullReadsPerSample,
@@ -176,7 +191,7 @@ run_all_DEs <- function(dataset,
   #     design_others,
   #     "prefilter")
   
-  ret[["DESeq2 indepfilter"]] <-
+  ret[["DESeq2"]] <-
     run_deseq2(
       virMat, 
       fullReadsPerSample,
