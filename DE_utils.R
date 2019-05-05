@@ -159,7 +159,7 @@ run_all_DEs <- function(dataset,
   covariates <- dataset$covariates
   
   ret <- list()
-  ret[["voom+limma"]] <- 
+  ret[["voom+limma no prefilter"]] <- 
     run_voom(
       virMat,
       fullReadsPerSample,
@@ -167,15 +167,15 @@ run_all_DEs <- function(dataset,
       design_others,
       "no_prefilter")
   
-  # ret[["voom+limma prefilter"]] <- 
-  #   run_voom(
-  #     virMat,
-  #     fullReadsPerSample,
-  #     covariates,
-  #     design_others,
-  #     "prefilter")
+  ret[["voom+limma prefilter"]] <- 
+    run_voom(
+      virMat,
+      fullReadsPerSample,
+      covariates,
+      design_others,
+      "prefilter")
   
-  ret[["edgeR"]] <- 
+  ret[["edgeR prefilter"]] <- 
     run_edgeR(
       virMat,
       fullReadsPerSample,
@@ -183,15 +183,15 @@ run_all_DEs <- function(dataset,
       design_others,
       "no_prefilter")
   
-  # ret[["edgeR no prefilter"]] <- 
-  #   run_edgeR(
-  #     virMat,
-  #     fullReadsPerSample,
-  #     covariates,
-  #     design_others,
-  #     "prefilter")
+  ret[["edgeR no prefilter"]] <- 
+    run_edgeR(
+      virMat,
+      fullReadsPerSample,
+      covariates,
+      design_others,
+      "prefilter")
   
-  ret[["DESeq2"]] <-
+  ret[["DESeq2 ind. filter"]] <-
     run_deseq2(
       virMat, 
       fullReadsPerSample,
@@ -199,13 +199,13 @@ run_all_DEs <- function(dataset,
       design_deseq2,
       "independent")
   
-  # ret[["DESeq2 prefilter"]] <- 
-  #   run_deseq2(
-  #     virMat,
-  #     fullReadsPerSample,
-  #     covariates,
-  #     design_deseq2,
-  #     "prefilter")
+  ret[["DESeq2 prefilter"]] <- 
+    run_deseq2(
+      virMat,
+      fullReadsPerSample,
+      covariates,
+      design_deseq2,
+      "prefilter")
   
   ret[["GLM"]] <-
     run_glm(

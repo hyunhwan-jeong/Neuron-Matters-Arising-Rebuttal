@@ -5,6 +5,7 @@ interests <- c("NC_001716.2_region_1_153080__ID=id0",
 
 df_de <- read_csv("results/DE_results.csv") %>% 
   filter(name %in% interests) %>% 
+  filter(method != "GLM") %>% 
   mutate(name = ifelse(name == interests[1], "HHV7", "HHV6A")) %>% 
   mutate(
     tissue = 
