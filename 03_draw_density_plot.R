@@ -10,10 +10,10 @@ get_count_df <- function(dataset, trait) {
   
   vir_name <- 
     c("HHV6A", "HHV7")
-
+  
   vir_id <- 
     c("NC_001664.2_region_1_159322__ID=id0", 
-    "NC_001716.2_region_1_153080__ID=id0")
+      "NC_001716.2_region_1_153080__ID=id0")
   df_expr <- tibble()
   for(i in 1:2) {
     df_expr <- 
@@ -52,7 +52,7 @@ for(tissue in c("BM_22", "BM_36", "BM_10", "BM_44")) {
                             AD_likely = "3",
                             AD_possible = "4")) %>% 
         select(tissue, everything()))
-
+  
 }
 
 for(tissue in c("ROS", "MAP")) {
@@ -126,29 +126,13 @@ df_expr <-  df_expr %>%
       )
   )
 library(cowplot)
-p1 <- df_expr %>% 
-  filter(name == "HHV6A") %>% 
-  ggplot(aes(rawcount)) +
-  geom_histogram(aes(y=..density..*..width..)) +
-  facet_grid(AD_level ~ tissue, scales = "free_x") +
-  ggtitle("HHV6A rawcount") +
-  ylab("Frequency") +
-  theme_bw()
-  
-p2 <- df_expr %>% 
-  filter(name == "HHV7") %>% 
-  ggplot(aes(rawcount)) +
-  geom_histogram(aes(y=..density..*..width..)) +
-  facet_grid(AD_level ~ tissue, scales = "free_x") +
-  ggtitle("HHV7 rawcount") +
-  ylab("Frequency") +  
-  theme_bw()
 
 p3 <- df_expr %>% 
   filter(name == "HHV6A") %>% 
   ggplot(aes(CPM)) +
-  geom_histogram(position="identity",aes(y=..density..), binwidth = .5, alpha=0.5) +
-  geom_density(aes(y=..density.., fill=AD_level), alpha=0.5) +
+  geom_histogram(aes(y=..density..*..width..), fill = "black", alpha=0.5) +
+  geom_density(aes(y=..density..), alpha=.5, fill="#FF6666", color = "grey") +
+  # geom_vline(aes(xintercept=median(CPM)), color="red", linetype="dashed", size=0.5) +  
   facet_grid(AD_level ~ tissue, scales = "free_x") +
   ggtitle("HHV6A") +
   ylab("Frequency") + xlab("log2CPM") +
@@ -157,17 +141,16 @@ p3 <- df_expr %>%
 p4 <- df_expr %>% 
   filter(name == "HHV7") %>% 
   ggplot(aes(CPM)) +
-  geom_histogram(position="identity",aes(y=..density..), binwidth = .5, alpha=0.5) +
-  geom_density(aes(y=..density.., fill=AD_level), alpha=0.5) +
+  geom_histogram(aes(y=..density..*..width..), fill = "black", alpha=0.5) +
+  geom_density(aes(y=..density..), alpha=.5, fill="#FF6666", color = "grey") +
+  # geom_vline(aes(xintercept=median(CPM)), color="red", linetype="dashed", size=0.5) +  
   facet_grid(AD_level ~ tissue, scales = "free_x") +
-  ggtitle("HHV7") +  
+  ggtitle("HHV6A") +
   ylab("Frequency") + xlab("log2CPM") +
   theme_bw()
 
 plot_grid(p3, p4, ncol = 2)
 save_plot(last_plot(), 
           filename = "results/viral_expression.pdf",
-          base_height = 7,
-          base_width = 16)
-
-
+          base_height = 6,
+          base_width = 14)
