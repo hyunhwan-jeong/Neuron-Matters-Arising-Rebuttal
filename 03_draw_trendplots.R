@@ -18,21 +18,26 @@ df_trend <- read_csv("results/voom_trend_results.csv") %>%
 library(cowplot)  
 df_trend %>% 
   ggplot(aes(x=sx, y=sy)) +
-  geom_point(alpha=0.5, size=0.3) +
-  geom_line(aes(x=lx, y=ly), alpha=0.5, color="red") +
-  geom_point(
-    data = df_trend %>% filter(name %in% vir_id),
-    aes(x=sx, y=sy), 
-    size=0.8,
-    color = "red"
-  )  + 
+  geom_point(alpha=0.2, size=2) +
+  geom_line(aes(x=lx, y=ly), alpha=1, color="red") +
+  # geom_point(
+  #   data = df_trend %>% filter(name %in% vir_id),
+  #   aes(x=sx, y=sy), 
+  #   size=0.8,
+  #   color = "red"
+  # )  + 
   facet_grid(method~tissue) +
-  theme_bw() + xlab("log2(count+0.5)") + ylab("sqrt(SD)")
+  theme_bw() + xlab("log2(count+0.5)") + ylab("sqrt(SD)") +
+  theme(strip.text.x = element_text(size = 16)) +
+  theme(strip.text.y = element_text(size = 16))  +
+  coord_fixed(ratio = 6) +
+  theme(axis.title=element_text(size=16,face="bold"))
+
 
 save_plot(last_plot(), 
           filename = "results/viral_trends.pdf",
           base_height = 8,
-          base_width = 16)
+          base_width = 14)
 # x <- read_csv("results/voom_trend_results.csv") %>% 
 #   filter(
 #     tissue == "ROS_DFC",

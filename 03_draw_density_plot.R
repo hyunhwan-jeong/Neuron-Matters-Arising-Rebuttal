@@ -136,6 +136,9 @@ p3 <- df_expr %>%
   facet_grid(AD_level ~ tissue, scales = "free_x") +
   ggtitle("HHV6A") +
   ylab("Frequency") + xlab("log2CPM") +
+  theme(strip.text.x = element_text(size = 18)) +
+  theme(strip.text.y = element_text(size = 18))  +
+  theme(axis.title=element_text(size=18,face="bold")) +
   theme_bw()
 
 p4 <- df_expr %>% 
@@ -145,8 +148,11 @@ p4 <- df_expr %>%
   geom_density(aes(y=..density..), alpha=.5, fill="#FF6666", color = "grey") +
   # geom_vline(aes(xintercept=median(CPM)), color="red", linetype="dashed", size=0.5) +  
   facet_grid(AD_level ~ tissue, scales = "free_x") +
-  ggtitle("HHV6A") +
+  ggtitle("HHV7") +
   ylab("Frequency") + xlab("log2CPM") +
+  theme(strip.text.x = element_text(size = 18)) +
+  theme(strip.text.y = element_text(size = 18))  +
+  theme(axis.title=element_text(size=18,face="bold")) +
   theme_bw()
 
 plot_grid(p3, p4, ncol = 2)
