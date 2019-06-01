@@ -36,8 +36,13 @@ draw_bars <- function(gg_obj, yintercept = 0) {
     geom_hline(yintercept = yintercept, color = "red") +
     theme_bw() +
     theme(
-      axis.text.x = element_text(angle = 90)
-    )
+      axis.text.x = element_text(angle = 45, hjust = 1.0, size = 12)
+    ) +
+    theme(strip.text.x = element_text(size = 16)) +
+    theme(strip.text.y = element_text(size = 16))  +
+    theme(axis.title=element_text(size=16)) +
+    theme(legend.text=element_text(size=16)) +
+    theme(title = element_text(size = 16))
 }
 
 library(cowplot)
